@@ -749,7 +749,7 @@ end
 
 -- Function to stop the script
 local function stopScript()
-    if not isRunning then return end
+    if isRunning then return end
     isRunning = false
     mobAutoFarmButton.Text = "Mob Auto Farm (OFF)"
     mobAutoFarmButton.BackgroundColor3 = Color3.fromRGB(120, 40, 40)  -- Reddish color for OFF state
