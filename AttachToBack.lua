@@ -162,9 +162,9 @@ sliderButton.Text = ""
 sliderButton.Parent = distanceSlider
 
 
--- Mob Distance slider label
-local mobDistanceLabel = Instance.new("TextLabel")
-mobDistanceLabel.Name = "MobDistanceLabel"
+--  Distance slider label
+local DistanceLabel = Instance.new("TextLabel")
+DistanceLabel.Name = "MobDistanceLabel"
 mobDistanceLabel.Size = UDim2.new(0.9, 0, 0, 20)
 mobDistanceLabel.Position = UDim2.new(0.05, 0, 0.23, 0) -- Adjusted Y position
 mobDistanceLabel.BackgroundTransparency = 1
@@ -775,20 +775,19 @@ local function startScript()
         return humanoid and humanoid.Health > 0
     end
 
-    local function getClosestMob()
-        local closestMob = nil
-        local closestDistance = math.huge
-        for _, mob in ipairs(workspace.Mobs:GetChildren()) do
-            if mob:IsA("Model") and mob:FindFirstChild("HumanoidRootPart") and isMobAlive(mob) then
-                local dist = (mob.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-                if dist < closestDistance then
-                    closestDistance = dist
-                    closestMob = mob
-                end
+     for _, target in ipairs(workspace.Characters:GetChildren()) do
+        -- Ensure the target is not the player's own character
+        if target ~= character and target:IsA("Model") and target:FindFirstChild("HumanoidRootPart") and isTargetAlive(target) then
+            local dist = (target.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+            if dist < closestDistance then
+                closestDistance = dist
+                closestTarget = target
             end
         end
-        return closestMob
     end
+
+    return closestTarget
+end
 
     local function calculateFollowPosition(targetCFrame)
         local position
