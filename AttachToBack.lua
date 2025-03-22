@@ -31,7 +31,7 @@ screenGui.ResetOnSpawn = false
 -- Main Frame
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 250, 0, 550)
+mainFrame.Size = UDim2.new(0, 250, 0, 450)
 mainFrame.Position = UDim2.new(0, 10, 1, -450) -- Adjusted Y position to match new height
 mainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 mainFrame.BorderSizePixel = 0
@@ -162,9 +162,9 @@ sliderButton.Text = ""
 sliderButton.Parent = distanceSlider
 
 
---  Distance slider label
-local DistanceLabel = Instance.new("TextLabel")
-DistanceLabel.Name = "MobDistanceLabel"
+-- Mob Distance slider label
+local mobDistanceLabel = Instance.new("TextLabel")
+mobDistanceLabel.Name = "MobDistanceLabel"
 mobDistanceLabel.Size = UDim2.new(0.9, 0, 0, 20)
 mobDistanceLabel.Position = UDim2.new(0.05, 0, 0.23, 0) -- Adjusted Y position
 mobDistanceLabel.BackgroundTransparency = 1
@@ -775,19 +775,20 @@ local function startScript()
         return humanoid and humanoid.Health > 0
     end
 
-     for _, target in ipairs(workspace.Characters:GetChildren()) do
-        -- Ensure the target is not the player's own character
-        if target ~= character and target:IsA("Model") and target:FindFirstChild("HumanoidRootPart") and isTargetAlive(target) then
-            local dist = (target.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-            if dist < closestDistance then
-                closestDistance = dist
-                closestTarget = target
+    local function getClosestMob()
+        local closestMob = nil
+        local closestDistance = math.huge
+        for _, mob in ipairs(workspace.Mobs:GetChildren()) do
+            if mob:IsA("Model") and mob:FindFirstChild("HumanoidRootPart") and isMobAlive(mob) then
+                local dist = (mob.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+                if dist < closestDistance then
+                    closestDistance = dist
+                    closestMob = mob
+                end
             end
         end
+        return closestMob
     end
-
-    return closestTarget
-end
 
     local function calculateFollowPosition(targetCFrame)
         local position
