@@ -745,14 +745,13 @@ local function toggleAutoClick(enable)
     end
 end
 
--- Declare top-level variables
+-- Top-level declarations
 local isRunning = false
 local followConnection = nil
-local mobAutoFarmButton = script.Parent -- Assuming this is a valid reference
 
 -- Function to stop the script
 local function stopScript()
-    if not isRunning then return end  -- Only stop if running
+    if not isRunning then return end  -- Reversed condition
     isRunning = false
     mobAutoFarmButton.Text = "Mob Auto Farm (OFF)"
     mobAutoFarmButton.BackgroundColor3 = Color3.fromRGB(120, 40, 40)
@@ -765,7 +764,7 @@ end
 
 -- Function to start the script
 local function startScript()
-    if isRunning then return end  -- Only start if not running
+    if isRunning then return end
     isRunning = true
     mobAutoFarmButton.Text = "Mob Auto Farm (ON)"
     mobAutoFarmButton.BackgroundColor3 = Color3.fromRGB(40, 120, 40)
@@ -773,16 +772,15 @@ local function startScript()
     local player = game.Players.LocalPlayer
     local character = player.Character or player.CharacterAdded:Wait()
     local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
     local RunService = game:GetService("RunService")
     local TweenService = game:GetService("TweenService")
 
-    -- Function to check if a mob is alive
     local function isMobAlive(mob)
         local humanoid = mob:FindFirstChildOfClass("Humanoid")
         return humanoid and humanoid.Health > 0
     end
 
-    -- Function to find the nearest character
     local function getClosestCharacter()
         local closestCharacter = nil
         local closestDistance = math.huge
@@ -799,35 +797,55 @@ local function startScript()
                 end
             end
         end
+        
         return closestCharacter
     end
 
-    -- Function to follow the nearest character
+    local function calculateFollowPosition(targetCFrame)
+        local position
+        local lookDirection
+
+        if followMode == "Behind" then
+            position = targetCFrame.Position - (targetCFrame.LookVector * MobfollowDistance)
+            lookDirection = targetCFrame.Position
+        elseif followMode == "Above" then
+            position = targetCFrame.Position + Vector3.new(0, MobfollowDistance, 0)
+            lookDirection = targetCFrame.Position
+        elseif followMode == "Below" then
+            position = targetCFrame.Position - Vector3.new(0, MobfollowDistance, 0)
+            lookDirection = targetCFrame.Position
+        end
+
+        return position, lookDirection
+    end
+
     local function followCharacter(targetCharacter)
         if followConnection then
             followConnection:Disconnect()
             followConnection = nil
         end
-
-        followConnection = RunService.RenderStepped:Connect(function()
-            if not isRunning then return end  -- Exit if stopped
-            local targetRootPart = targetCharacter:FindFirstChild("HumanoidRootPart")
-            if targetRootPart then
-                humanoidRootPart.CFrame = targetRootPart.CFrame
-                    * CFrame.new(0, 0, 3)  -- Follow behind
-                    * CFrame.Angles(0, math.rad(180), 0)
-            end
-        end)
+        
+        if targetCharacter and isRunning then
+            followConnection = RunService.RenderStepped:Connect(function()
+                if not isRunning then return end  -- Added check
+                local targetRootPart = targetCharacter:FindFirstChild("HumanoidRootPart")
+                if targetRootPart then
+                    local followPosition, lookTarget = calculateFollowPosition(targetRootPart.CFrame)
+                    local lookVector = (lookTarget - followPosition).Unit
+                    local newCFrame = CFrame.new(followPosition, lookTarget)
+                    
+                    humanoidRootPart.CFrame = newCFrame
+                end
+            end)
+        end
     end
 
-    -- Function to move between characters
     local function moveToNextCharacter()
-        while isRunning do  -- Check isRunning state
+        while isRunning do  -- Added condition check
             local targetCharacter = getClosestCharacter()
             if targetCharacter then
                 followCharacter(targetCharacter)
-                -- Wait until target is invalid or script stops
-                while isRunning and targetCharacter and targetCharacter:FindFirstChild("HumanoidRootPart") do
+                while targetCharacter and targetCharacter:FindFirstChild("HumanoidRootPart") and isRunning do
                     task.wait(0.1)
                 end
             else
@@ -836,19 +854,10 @@ local function startScript()
         end
     end
 
-    -- Start the movement loop
     moveToNextCharacter()
 end
 
--- Bind End key to stop script
-local UserInputService = game:GetService("UserInputService")
-UserInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.End then
-        stopScript()
-    end
-end)
-
--- Toggle button click
+-- Toggle the script
 mobAutoFarmButton.MouseButton1Click:Connect(function()
     if isRunning then
         stopScript()
@@ -856,8 +865,6 @@ mobAutoFarmButton.MouseButton1Click:Connect(function()
         startScript()
     end
 end)
-
-
 
 
 -- Toggle button functionality
