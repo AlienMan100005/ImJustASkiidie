@@ -745,14 +745,14 @@ local function toggleAutoClick(enable)
     end
 end
 
-
--- DECLARE THESE VARIABLES IN A SCOPE ACCESSIBLE TO BOTH FUNCTIONS
+-- Declare top-level variables
 local isRunning = false
 local followConnection = nil
+local mobAutoFarmButton = script.Parent -- Assuming this is a valid reference
 
 -- Function to stop the script
 local function stopScript()
-    if not isRunning then return end
+    if not isRunning then return end  -- Only stop if running
     isRunning = false
     mobAutoFarmButton.Text = "Mob Auto Farm (OFF)"
     mobAutoFarmButton.BackgroundColor3 = Color3.fromRGB(120, 40, 40)
@@ -765,7 +765,7 @@ end
 
 -- Function to start the script
 local function startScript()
-    if isRunning then return end
+    if isRunning then return end  -- Only start if not running
     isRunning = true
     mobAutoFarmButton.Text = "Mob Auto Farm (ON)"
     mobAutoFarmButton.BackgroundColor3 = Color3.fromRGB(40, 120, 40)
@@ -776,15 +776,58 @@ local function startScript()
     local RunService = game:GetService("RunService")
     local TweenService = game:GetService("TweenService")
 
-    -- ... (rest of your code, e.g., isMobAlive, getClosestCharacter, etc.) ...
+    -- Function to check if a mob is alive
+    local function isMobAlive(mob)
+        local humanoid = mob:FindFirstChildOfClass("Humanoid")
+        return humanoid and humanoid.Health > 0
+    end
 
+    -- Function to find the nearest character
+    local function getClosestCharacter()
+        local closestCharacter = nil
+        local closestDistance = math.huge
+        
+        for _, otherCharacter in ipairs(workspace.Characters:GetChildren()) do
+            if otherCharacter ~= character then
+                local targetRootPart = otherCharacter:FindFirstChild("HumanoidRootPart")
+                if targetRootPart then
+                    local distance = (humanoidRootPart.Position - targetRootPart.Position).Magnitude
+                    if distance < closestDistance then
+                        closestDistance = distance
+                        closestCharacter = otherCharacter
+                    end
+                end
+            end
+        end
+        return closestCharacter
+    end
+
+    -- Function to follow the nearest character
+    local function followCharacter(targetCharacter)
+        if followConnection then
+            followConnection:Disconnect()
+            followConnection = nil
+        end
+
+        followConnection = RunService.RenderStepped:Connect(function()
+            if not isRunning then return end  -- Exit if stopped
+            local targetRootPart = targetCharacter:FindFirstChild("HumanoidRootPart")
+            if targetRootPart then
+                humanoidRootPart.CFrame = targetRootPart.CFrame
+                    * CFrame.new(0, 0, 3)  -- Follow behind
+                    * CFrame.Angles(0, math.rad(180), 0)
+            end
+        end)
+    end
+
+    -- Function to move between characters
     local function moveToNextCharacter()
-        -- ADD isRunning CHECK TO EXIT LOOP
-        while isRunning do
+        while isRunning do  -- Check isRunning state
             local targetCharacter = getClosestCharacter()
             if targetCharacter then
                 followCharacter(targetCharacter)
-                while targetCharacter and targetCharacter:FindFirstChild("HumanoidRootPart") and isRunning do
+                -- Wait until target is invalid or script stops
+                while isRunning and targetCharacter and targetCharacter:FindFirstChild("HumanoidRootPart") do
                     task.wait(0.1)
                 end
             else
@@ -793,11 +836,26 @@ local function startScript()
         end
     end
 
+    -- Start the movement loop
     moveToNextCharacter()
 end
 
--- Toggle button code remains the same
+-- Bind End key to stop script
+local UserInputService = game:GetService("UserInputService")
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.End then
+        stopScript()
+    end
+end)
 
+-- Toggle button click
+mobAutoFarmButton.MouseButton1Click:Connect(function()
+    if isRunning then
+        stopScript()
+    else
+        startScript()
+    end
+end)
 
 
 
