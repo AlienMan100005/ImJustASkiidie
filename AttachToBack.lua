@@ -746,13 +746,16 @@ local function toggleAutoClick(enable)
 end
 
 
+-- DECLARE THESE VARIABLES IN A SCOPE ACCESSIBLE TO BOTH FUNCTIONS
+local isRunning = false
+local followConnection = nil
 
 -- Function to stop the script
 local function stopScript()
-    if isRunning then return end
+    if not isRunning then return end
     isRunning = false
     mobAutoFarmButton.Text = "Mob Auto Farm (OFF)"
-    mobAutoFarmButton.BackgroundColor3 = Color3.fromRGB(120, 40, 40)  -- Reddish color for OFF state
+    mobAutoFarmButton.BackgroundColor3 = Color3.fromRGB(120, 40, 40)
 
     if followConnection then
         followConnection:Disconnect()
@@ -765,117 +768,35 @@ local function startScript()
     if isRunning then return end
     isRunning = true
     mobAutoFarmButton.Text = "Mob Auto Farm (ON)"
-    mobAutoFarmButton.BackgroundColor3 = Color3.fromRGB(40, 120, 40)  -- Greenish color for ON state
+    mobAutoFarmButton.BackgroundColor3 = Color3.fromRGB(40, 120, 40)
 
     local player = game.Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    local RunService = game:GetService("RunService")
+    local TweenService = game:GetService("TweenService")
 
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local isFollowing = true -- Whether the script should follow the player
-local followConnection = nil -- Connection for the RenderStepped event
+    -- ... (rest of your code, e.g., isMobAlive, getClosestCharacter, etc.) ...
 
-    -- Function to check if a mob is alive
-    local function isMobAlive(mob)
-        local humanoid = mob:FindFirstChildOfClass("Humanoid")
-        return humanoid and humanoid.Health > 0
-    end
-
- -- Function to find the nearest character in workspace
-local function getClosestCharacter()
-    local closestCharacter = nil
-    local closestDistance = math.huge
-    
-    for _, otherCharacter in ipairs(workspace.Characters:GetChildren()) do
-        -- Ignore the local player's character
-        if otherCharacter ~= character then
-            local targetRootPart = otherCharacter:FindFirstChild("HumanoidRootPart")
-            if targetRootPart then
-                local distance = (humanoidRootPart.Position - targetRootPart.Position).Magnitude
-                if distance < closestDistance then
-                    closestDistance = distance
-                    closestCharacter = otherCharacter
+    local function moveToNextCharacter()
+        -- ADD isRunning CHECK TO EXIT LOOP
+        while isRunning do
+            local targetCharacter = getClosestCharacter()
+            if targetCharacter then
+                followCharacter(targetCharacter)
+                while targetCharacter and targetCharacter:FindFirstChild("HumanoidRootPart") and isRunning do
+                    task.wait(0.1)
                 end
+            else
+                task.wait(1)
             end
         end
     end
-    
-    return closestCharacter
-end
 
-    -- Function to calculate the follow position based on the target's CFrame
-    local function calculateFollowPosition(targetCFrame)
-        local position
-        local lookDirection
-
-        if followMode == "Behind" then
-            position = targetCFrame.Position - (targetCFrame.LookVector * MobfollowDistance)
-            lookDirection = targetCFrame.Position
-        elseif followMode == "Above" then
-            position = targetCFrame.Position + Vector3.new(0, MobfollowDistance, 0)
-            lookDirection = targetCFrame.Position
-        elseif followMode == "Below" then
-            position = targetCFrame.Position - Vector3.new(0, MobfollowDistance, 0)
-            lookDirection = targetCFrame.Position
-        end
-
-        return position, lookDirection
-    end
-
- -- Function to follow the nearest character
-local function followCharacter(targetCharacter)
-    if followConnection then
-        followConnection:Disconnect()
-        followConnection = nil
-    end
-    
-    if targetCharacter and isFollowing then
-        followConnection = RunService.RenderStepped:Connect(function()
-            local targetRootPart = targetCharacter:FindFirstChild("HumanoidRootPart")
-            if targetRootPart then
-                local followPosition, lookTarget = calculateFollowPosition(targetRootPart.CFrame)
-                local lookVector = (lookTarget - followPosition).Unit
-                local newCFrame = CFrame.new(followPosition, lookTarget)
-                
-                humanoidRootPart.CFrame = newCFrame
-            end
-        end)
-    end
-end
-
--- Function to move to the nearest character
-local function moveToNextCharacter()
-    while true do
-        local targetCharacter = getClosestCharacter()
-        if targetCharacter then
-            followCharacter(targetCharacter)
-            -- Wait until the target character is no longer valid (e.g., removed from workspace)
-            while targetCharacter and targetCharacter:FindFirstChild("HumanoidRootPart") do
-                task.wait(0.1)
-            end
-        else
-            print("No characters found!")
-            task.wait(1) -- Wait before checking again
-        end
-    end
-end
-    -- Start the process
     moveToNextCharacter()
 end
 
--- Toggle the script on button click
-mobAutoFarmButton.MouseButton1Click:Connect(function()
-    if isRunning then
-        stopScript()
-    else
-        startScript()
-    end
-end)
-
-
-
-
+-- Toggle button code remains the same
 
 
 
