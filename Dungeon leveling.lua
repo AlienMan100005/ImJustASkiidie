@@ -290,17 +290,19 @@ game:GetService("UserInputService").InputBegan:Connect(handleOutsideClick)
 
 -- Example Options (unchanged)
 local difficulties = {"Easy", "Medium", "Hard"}
-local dungeons = {"Dungeon 1", "Dungeon 2", "Dungeon 3"}
+local dungeons = {"Orc Lands", "Dungeon 2", "Dungeon 3"}
 
 for _, difficulty in ipairs(difficulties) do
     createDropdownOption(difficultyDropdownList, difficulty, function(selected)
         difficultyDropdownText.Text = "Difficulty: " .. selected
+        difficulties = selected
     end)
 end
 
 for _, dungeon in ipairs(dungeons) do
     createDropdownOption(dungeonDropdownList, dungeon, function(selected)
         dungeonDropdownText.Text = "Dungeon: " .. selected
+        dungeons = selected
     end)
 end
 
@@ -456,7 +458,7 @@ redSquareButtonTwo.BorderSizePixel = 0
 redSquareButtonTwo.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text
 redSquareButtonTwo.TextSize = 14
 redSquareButtonTwo.Font = Enum.Font.SourceSansBold
-redSquareButtonTwo.Text = "AD" -- Text added
+redSquareButtonTwo.Text = "AB" -- Text added
 redSquareButtonTwo.TextXAlignment = Enum.TextXAlignment.Center -- Center text horizontally
 redSquareButtonTwo.TextYAlignment = Enum.TextYAlignment.Center -- Center text vertically
 redSquareButtonTwo.Parent = contentFrame
@@ -471,57 +473,212 @@ redSquareButtonThree.BorderSizePixel = 0
 redSquareButtonThree.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text
 redSquareButtonThree.TextSize = 14
 redSquareButtonThree.Font = Enum.Font.SourceSansBold
-redSquareButtonThree.Text = "AD" -- Text added
+redSquareButtonThree.Text = "CP" -- Text added
 redSquareButtonThree.TextXAlignment = Enum.TextXAlignment.Center -- Center text horizontally
 redSquareButtonThree.TextYAlignment = Enum.TextYAlignment.Center -- Center text vertically
 redSquareButtonThree.Parent = contentFrame
 
 -- Function to change the button color to green and run the scripts
 redSquareButton.MouseButton1Click:Connect(function()
-    -- Change the button color to green
     redSquareButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Green color
 
-    -- First script: Create Dungeon Group
-    local createArgs = {
-        [1] = {
-            ["Location"] = "Orc Lands",
-            ["GroupType"] = "Private",
-            ["Difficult"] = "Easy",
-            ["Invasions"] = false
-        }
-    }
-    game:GetService("ReplicatedStorage"):WaitForChild("Events", 9e9):WaitForChild("CreateDungeonGroup", 9e9):FireServer(unpack(createArgs))
+    -- Create dungeon group with selected values
+    local args = {
+    [1] = {
+        ["Location"] = dungeons;
+        ["GroupType"] = "Private";
+        ["Difficult"] = difficulties;
+        ["Invasions"] = false;
+    };
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Events", 9e9):WaitForChild("CreateDungeonGroup", 9e9):FireServer(unpack(args))
 
-    -- Second script: Start Dungeon Group
-    local startArgs = {
-        [1] = "Forward"
-    }
-    game:GetService("ReplicatedStorage"):WaitForChild("Events", 9e9):WaitForChild("StartDungeonGroup", 9e9):FireServer(unpack(startArgs))
+    -- Start dungeon group
+  local args = {
+    [1] = "Forward";
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Events", 9e9):WaitForChild("StartDungeonGroup", 9e9):FireServer(unpack(args))
+print(dungeons)
+print(difficulties)
 end)
 
--- Toggle button color on click
-local isRedTwo = true -- Track the current state of the button
+local isRed = true -- Track the current state of the button
+local heartbeatConnection = nil -- Connection for the second script
+local isBlocking = false -- Track the blocking state
+
+-- Function to start the second script
+local function startSecondScript()
+    local player = game.Players.LocalPlayer
+    local character = player.Character or player.CharacterAdded:Wait()
+    local rootPart = character:WaitForChild("HumanoidRootPart")
+    local blockingFrame = player.PlayerGui.ScreenInfo.Blocking
+
+    local RunService = game:GetService("RunService")
+    local BLOCK_RANGE = 5
+    local enemiesInRange = {}
+
+    local function invokeBlocking()
+        local args = { [1] = "Blocking" }
+        game:GetService("ReplicatedStorage"):WaitForChild("Events", 9e9):WaitForChild("Blocking", 9e9):InvokeServer(unpack(args))
+    end
+
+    local function invokeUnBlocking()
+        local args = { [1] = "UnBlocking" }
+        game:GetService("ReplicatedStorage"):WaitForChild("Events", 9e9):WaitForChild("Blocking", 9e9):InvokeServer(unpack(args))
+    end
+
+    local function cleanupEnemies()
+        for enemy in pairs(enemiesInRange) do
+            if not enemy.Parent or not enemy:IsDescendantOf(workspace) then
+                enemiesInRange[enemy] = nil
+            end
+        end
+    end
+
+    local function checkEnemies()
+        cleanupEnemies()
+        
+        local anyInRange = false
+        for _, enemy in ipairs(workspace.Characters:GetChildren()) do
+            if enemy ~= character and enemy:IsA("Model") then
+                local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
+                if enemyRoot and (rootPart.Position - enemyRoot.Position).Magnitude <= BLOCK_RANGE then
+                    enemiesInRange[enemy] = true
+                    anyInRange = true
+                end
+            end
+        end
+        
+        if anyInRange and not isBlocking then
+            invokeBlocking()
+            isBlocking = true
+            blockingFrame.Visible = true
+        elseif not anyInRange and isBlocking then
+            invokeUnBlocking()
+            isBlocking = false
+            blockingFrame.Visible = false
+        end
+    end
+
+    heartbeatConnection = RunService.Heartbeat:Connect(checkEnemies)
+
+    character.Destroying:Connect(function()
+        if heartbeatConnection then
+            heartbeatConnection:Disconnect()
+        end
+        if isBlocking then
+            invokeUnBlocking()
+        end
+    end)
+end
+
+-- Function to stop the second script
+local function stopSecondScript()
+    if heartbeatConnection then
+        heartbeatConnection:Disconnect()
+        heartbeatConnection = nil
+    end
+    if isBlocking then
+        invokeUnBlocking()
+        isBlocking = false
+    end
+end
+
+-- Toggle button color and start/stop the second script
 redSquareButtonTwo.MouseButton1Click:Connect(function()
     if isRed then
         redSquareButtonTwo.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Change to green
+        startSecondScript() -- Start the second script
     else
         redSquareButtonTwo.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Change back to red
+        stopSecondScript() -- Stop the second script
     end
     isRed = not isRed -- Toggle the state
 end)
 
--- Toggle button color on click
+
+
 local isRedThree = true -- Track the current state of the button
+local isTeleportEnabled = false -- Track whether teleportation is enabled
+
 redSquareButtonThree.MouseButton1Click:Connect(function()
-    if isRed then
-        redSquareButtonThree.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Change to green
-    else
-        redSquareButtonThree.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Change back to red
+    -- Toggle button color
+    isRedThree = not isRedThree
+    redSquareButtonThree.BackgroundColor3 = isRedThree and Color3.new(1, 0, 0) or Color3.new(0, 1, 0)
+
+    -- Toggle teleportation logic
+    isTeleportEnabled = not isTeleportEnabled
+
+    -- Run the second script only if teleportation is enabled
+    if isTeleportEnabled then
+        local plr = game:GetService("Players").LocalPlayer
+        local tween_s = game:GetService("TweenService")
+        local info = TweenInfo.new(3, Enum.EasingStyle.Quad)
+
+        local debounce = false -- Prevents multiple simultaneous tweens
+
+        -- Enhanced tween function with completion tracking
+        function tp(cframe)
+            if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then
+                warn("Character or HumanoidRootPart missing")
+                return
+            end
+            
+            local success, err = pcall(function()
+                local tween = tween_s:Create(plr.Character.HumanoidRootPart, info, {CFrame = cframe})
+                debounce = true
+                tween.Completed:Connect(function()
+                    debounce = false
+                end)
+                tween:Play()
+            end)
+            
+            if not success then
+                warn("Tween error: " .. err)
+                debounce = false
+            end
+        end
+
+        -- Main monitoring loop
+        while isTeleportEnabled do
+            task.wait(0.1) -- Non-blocking wait
+            
+            if not debounce then
+                -- Check character validity
+                if plr.Character and plr.Character:FindFirstChild("Humanoid") then
+                    local humanoid = plr.Character.Humanoid
+                    
+                    -- Health check
+                    if humanoid.Health < 30 then
+                        -- Find target structure
+                        local target
+                        local tower = workspace:FindFirstChild("Tower")
+                        
+                        if tower then
+                            local startRoom = tower:FindFirstChild("StartRoom")
+                            if startRoom then
+                                local campfire = startRoom:FindFirstChild("Campfire")
+                                if campfire then
+                                    target = campfire:FindFirstChild("Rocks")
+                                end
+                            end
+                        end
+
+                        -- Tween if target found
+                        if target then
+                            -- Get the CFrame of the rocks and adjust it to be 10 studs higher
+                            local targetCFrame = target:GetPivot()
+                            local adjustedCFrame = targetCFrame + Vector3.new(0, 3, 0) -- Move 10 studs up on the Y-axis
+                            tp(adjustedCFrame)
+                        else
+                            warn("Target rocks not found!")
+                        end
+                    end
+                end
+            end
+        end
     end
-    isRed = not isRed -- Toggle the state
 end)
-
-
 -- Start/Stop Button
 local toggleButton = Instance.new("TextButton")
 toggleButton.Name = "ToggleButton"
@@ -683,6 +840,38 @@ titleBar.InputBegan:Connect(function(input)
         end)
     end
 end)
+
+-- Function to change HoldDuration of ProximityPrompts
+local function changeProximityPrompts(proximityPrompt)
+    -- Check if the child is a ProximityPrompt
+    if proximityPrompt:IsA("ProximityPrompt") then
+        -- Change HoldDuration to 0
+        proximityPrompt.HoldDuration = 0
+    end
+end
+
+-- Function to set up the listener for new ProximityPrompts
+local function setupProximityPromptListener(tower)
+    -- Loop through existing children first
+    for _, child in ipairs(tower:GetDescendants()) do
+        changeProximityPrompts(child)
+    end
+
+    -- Listen for new children being added
+    tower.DescendantAdded:Connect(function(child)
+        changeProximityPrompts(child)
+    end)
+end
+
+-- Get the Tower model in workspace
+local tower = workspace:FindFirstChild("Tower")
+
+if tower then
+    -- Set up the listener for new ProximityPrompts
+    setupProximityPromptListener(tower)
+else
+    warn("Tower not found in workspace!")
+end
 
 titleBar.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement then
