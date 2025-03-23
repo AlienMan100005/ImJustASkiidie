@@ -1233,7 +1233,9 @@ local function toggleHealthMode(enable)
     end
 end
 
--- Auto Click function
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
 local function toggleAutoClick(enable)
     isAutoClicking = enable
     
@@ -1244,9 +1246,14 @@ local function toggleAutoClick(enable)
         -- Start auto clicking
         autoClickConnection = RunService.RenderStepped:Connect(function()
             if isAutoClicking then
-                mouse1press()
+                -- Get the center of the screen
+                local screenCenter = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y / 2)
+                
+                -- Simulate mouse click at the center of the screen
+                UserInputService:SetMouseLocation(screenCenter)
+                UserInputService:SendMouseButtonEvent(screenCenter.X, screenCenter.Y, Enum.UserInputType.MouseButton1, true)
                 wait(0.1) -- Click delay
-                mouse1release()
+                UserInputService:SendMouseButtonEvent(screenCenter.X, screenCenter.Y, Enum.UserInputType.MouseButton1, false)
                 wait(0.1) -- Release delay
             end
         end)
