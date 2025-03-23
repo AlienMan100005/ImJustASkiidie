@@ -783,17 +783,17 @@ healthButton.Text = "Lowest Health Mode"
 healthButton.Parent = contentFrame
 
 -- Auto Click Button
-local autoClickButton = Instance.new("TextButton")
-autoClickButton.Name = "AutoClickButton"
-autoClickButton.Size = UDim2.new(0.9, 0, 0, 30)
-autoClickButton.Position = UDim2.new(0.05, 0, 0.88, 0) -- Slightly increased Y position
-autoClickButton.BackgroundColor3 = Color3.fromRGB(40, 40, 120)
-autoClickButton.BorderSizePixel = 0
-autoClickButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-autoClickButton.TextSize = 14
-autoClickButton.Font = Enum.Font.SourceSansBold
-autoClickButton.Text = "Auto Click [V]"
-autoClickButton.Parent = contentFrame
+local Button = Instance.new("TextButton")
+Button.Name = "Button"
+Button.Size = UDim2.new(0.9, 0, 0, 30)
+Button.Position = UDim2.new(0.05, 0, 0.88, 0) -- Slightly increased Y position
+Button.BackgroundColor3 = Color3.fromRGB(40, 40, 120)
+Button.BorderSizePixel = 0
+Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+Button.TextSize = 14
+Button.Font = Enum.Font.SourceSansBold
+Button.Text = "Auto Click [V]"
+Button.Parent = contentFrame
 
 -- Mob Auto Farm Button
 local mobAutoFarmButton = Instance.new("TextButton")
@@ -1243,18 +1243,29 @@ local function toggleAutoClick(enable)
         autoClickButton.Text = "Stop Auto Click [V]"
         autoClickButton.BackgroundColor3 = Color3.fromRGB(120, 40, 40)
         
+        -- Get mouse and GUI references
+        local players = game:GetService("Players")
+        local player = players.LocalPlayer
+        local mouse = player:GetMouse()
+        local mainFrame = screenGui:FindFirstChild("MainFrame")
+
         -- Start auto clicking
         autoClickConnection = RunService.RenderStepped:Connect(function()
-            if isAutoClicking then
-                -- Get the center of the screen
-                local screenCenter = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y / 2)
+            if isAutoClicking and mainFrame then
+                -- Check if mouse is NOT over the MainFrame GUI
+                local mousePos = Vector2.new(mouse.X, mouse.Y)
+                local framePos = mainFrame.AbsolutePosition
+                local frameSize = mainFrame.AbsoluteSize
                 
-                -- Simulate mouse click at the center of the screen
-                UserInputService:SetMouseLocation(screenCenter)
-                UserInputService:SendMouseButtonEvent(screenCenter.X, screenCenter.Y, Enum.UserInputType.MouseButton1, true)
-                wait(0.1) -- Click delay
-                UserInputService:SendMouseButtonEvent(screenCenter.X, screenCenter.Y, Enum.UserInputType.MouseButton1, false)
-                wait(0.1) -- Release delay
+                local isMouseOverGui = (mousePos.X >= framePos.X) and (mousePos.X <= framePos.X + frameSize.X) and
+                                      (mousePos.Y >= framePos.Y) and (mousePos.Y <= framePos.Y + frameSize.Y)
+                
+                if not isMouseOverGui then
+                    mouse1press()
+                    task.wait(0.1)  -- Click delay (use task.wait instead of wait)
+                    mouse1release()
+                    task.wait(0.1)  -- Release delay
+                end
             end
         end)
     else
