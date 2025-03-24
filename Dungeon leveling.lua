@@ -649,7 +649,7 @@ redSquareButtonThree.MouseButton1Click:Connect(function()
                     local humanoid = plr.Character.Humanoid
                     
                     -- Health check
-                    if humanoid.Health < 30 then
+                    if humanoid.Health < 35 then
                         -- Find target structure
                         local target
                         local tower = workspace:FindFirstChild("Tower")
@@ -1283,10 +1283,11 @@ end
 -- Top-level declarations
 local isRunning = false
 local followConnection = nil
+local healthCheckConnection = nil
 
--- Function to stop the script
+-- Function to stop the script completely (like manual toggle off)
 local function stopScript()
-    if not isRunning then return end  -- Reversed condition
+    if not isRunning then return end
     isRunning = false
     mobAutoFarmButton.Text = "Mob Auto Farm (OFF)"
     mobAutoFarmButton.BackgroundColor3 = Color3.fromRGB(120, 40, 40)
@@ -1294,6 +1295,11 @@ local function stopScript()
     if followConnection then
         followConnection:Disconnect()
         followConnection = nil
+    end
+    
+    if healthCheckConnection then
+        healthCheckConnection:Disconnect()
+        healthCheckConnection = nil
     end
 end
 
@@ -1306,7 +1312,15 @@ local function startScript()
 
     local player = game.Players.LocalPlayer
     local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
     local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+    -- Health monitoring (only stops script, never starts it)
+    healthCheckConnection = humanoid.HealthChanged:Connect(function(currentHealth)
+        if currentHealth < 40 and isRunning then
+            stopScript()
+        end
+    end)
 
     local RunService = game:GetService("RunService")
     local TweenService = game:GetService("TweenService")
@@ -1362,7 +1376,7 @@ local function startScript()
         
         if targetCharacter and isRunning then
             followConnection = RunService.RenderStepped:Connect(function()
-                if not isRunning then return end  -- Added check
+                if not isRunning then return end
                 local targetRootPart = targetCharacter:FindFirstChild("HumanoidRootPart")
                 if targetRootPart then
                     local followPosition, lookTarget = calculateFollowPosition(targetRootPart.CFrame)
@@ -1376,7 +1390,7 @@ local function startScript()
     end
 
     local function moveToNextCharacter()
-        while isRunning do  -- Added condition check
+        while isRunning do
             local targetCharacter = getClosestCharacter()
             if targetCharacter then
                 followCharacter(targetCharacter)
@@ -1392,16 +1406,24 @@ local function startScript()
     moveToNextCharacter()
 end
 
--- Toggle the script
+-- Toggle the script (only way to turn it back on)
 mobAutoFarmButton.MouseButton1Click:Connect(function()
     if isRunning then
         stopScript()
     else
-        startScript()
+        -- Check health before allowing manual start
+        local player = game.Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local humanoid = character:WaitForChild("Humanoid")
+        
+        if humanoid.Health > 100 then
+            startScript()
+        else
+            -- Optional: Notify player why it won't start
+            print("Cannot start - health must be above 100")
+        end
     end
 end)
-
-
 -- Toggle button functionality
 toggleButton.MouseButton1Click:Connect(function()
     if not selectedPlayer and not isRandomMode and not isHealthMode then
