@@ -514,7 +514,7 @@ local function startSecondScript()
     local blockingFrame = player.PlayerGui.ScreenInfo.Blocking
 
     local RunService = game:GetService("RunService")
-    local BLOCK_RANGE = 6.5
+    local BLOCK_RANGE = 5.5
     local enemiesInRange = {}
 
     local function invokeBlocking()
